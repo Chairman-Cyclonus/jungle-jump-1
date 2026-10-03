@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://dwfudb5u3ijls"]
+
+[ext_resource type="Script" uid="uid://d28oxtwli4do4" path="res://Levels/level_base.gd" id="1_exesn"]
+[ext_resource type="PackedScene" uid="uid://odvf1m5x3ba6" path="res://player/player.tscn" id="2_8kvgk"]
+[ext_resource type="TileSet" uid="uid://dhxw3f8l2saqn" path="res://assets/tilesets/tiles_world.tres" id="3_ycc68"]
+[ext_resource type="TileSet" uid="uid://dn505hopwb4de" path="res://assets/tilesets/tiles_items.tres" id="4_p71ty"]
+[ext_resource type="TileSet" uid="uid://blhd0ogpuydej" path="res://assets/tilesets/tiles_spikes.tres" id="5_7n0l5"]
+
+[node name="LevelBase" type="Node" unique_id=1475158922]
+script = ExtResource("1_exesn")
+
+[node name="Player" parent="." unique_id=1419455907 instance=ExtResource("2_8kvgk")]
+
+[node name="World" type="TileMap" parent="." unique_id=1604861304]
+tile_set = ExtResource("3_ycc68")
+format = 2
+
+[node name="Items" type="TileMap" parent="." unique_id=1042126294]
+tile_set = ExtResource("4_p71ty")
+format = 2
+
+[node name="Danger" type="TileMap" parent="." unique_id=534131341]
+tile_set = ExtResource("5_7n0l5")
+format = 2
+
+[node name="SpawnPoint" type="Marker2D" parent="." unique_id=364976842]

@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://bh0qqa2mwux2f"]
+
+[ext_resource type="PackedScene" uid="uid://dwfudb5u3ijls" path="res://Levels/level_base.tscn" id="1_yvup7"]
+
+[node name="Level01" unique_id=1475158922 instance=ExtResource("1_yvup7")]
+
+[node name="World" parent="." index="1" unique_id=1604861304]
+layer_0/tile_data = PackedInt32Array(65535, 1114112, 14, 0, 1114112, 14, 1, 1114112, 14, 2, 1245184, 14, 65534, 983040, 14)
