@@ -1,19 +1,18 @@
 extends Area2D
-signal picked_up
+signal picked_up(points)
+var collected = false
+var points = 10
 
-var textures = {
-	"cherry": "res://assets/sprites/cherry.png",
-	"gem" : "res://assets/sprites/gem.png"
-}
-
-func init(type, _position):
-	$Sprite2D.texture = load(textures[type])
-	position = _position
-	
-	
-
-
+func init(kind, spawn_position):
+	points = 25 if kind == "gem" else 10
+	$Sprite2D.texture = load("res://assets/sprites/%s.png" % kind)
+	position = spawn_position
+	$AnimationPlayer.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
 
 func _on_body_entered(body):
-	picked_up.emit()
+	if collected or not body.is_in_group("player"):
+		return
+	collected = true
+	picked_up.emit(points)
 	queue_free()
+
