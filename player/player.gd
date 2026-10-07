@@ -1,135 +1,96 @@
 extends CharacterBody2D
-signal life_changed(value)
+@export var gravity = 750
+@export var run_speed = 150
+@export var jump_speed = -100
+signal life_changed
 signal died
-@export var gravity = 900.0
-@export var run_speed = 160.0
-@export var jump_speed = -330.0
-@export var max_fall_speed = 600.0
-@export var climb_speed = 95.0
-enum {IDLE, RUN, JUMP, HURT, DEAD, CLIMB}
-var state = IDLE
+
 var life = 3: set = set_life
-var jump_count = 0
-var is_on_ladder = false
-var invulnerability = 0.0
-var hurt_time = 0.0
-var coyote_time = 0.0
-var jump_buffer = 0.0
-var dust: CPUParticles2D
-
-func _ready():
-	add_to_group("player")
-	collision_mask = 1
-	floor_snap_length = 4.0
-	dust = CPUParticles2D.new()
-	dust.amount = 12
-	dust.lifetime = 0.3
-	dust.one_shot = true
-	dust.explosiveness = 1.0
-	dust.direction = Vector2.UP
-	dust.spread = 70.0
-	dust.initial_velocity_min = 12
-	dust.initial_velocity_max = 35
-	dust.gravity = Vector2(0, 60)
-	dust.scale_amount_min = 1.0
-	dust.scale_amount_max = 2.0
-	var gradient = Gradient.new()
-	gradient.colors = PackedColorArray([Color("d8bc91"), Color(0.85, 0.74, 0.57, 0)])
-	dust.color_ramp = gradient
-	dust.emitting = false
-	add_child(dust)
-	change_state(IDLE)
-
-func change_state(next_state):
-	state = next_state
-	match state:
-		IDLE: $AnimationPlayer.play("idle")
-		RUN: $AnimationPlayer.play("run")
-		JUMP: $AnimationPlayer.play("jump_up" if velocity.y < 0 else "jump_down")
-		HURT: $AnimationPlayer.play("hurt")
-		CLIMB: $AnimationPlayer.stop()
-		DEAD:
-			velocity = Vector2.ZERO
-			hide()
-			died.emit()
-
-func _physics_process(delta):
-	if state == DEAD:
-		return
-	invulnerability = maxf(0.0, invulnerability - delta)
-	hurt_time = maxf(0.0, hurt_time - delta)
-	$Sprite2D.modulate.a = 0.4 if invulnerability > 0 and int(invulnerability * 14) % 2 == 0 else 1.0
-	var grounded = is_on_floor()
-	coyote_time = 0.10 if grounded else maxf(0.0, coyote_time - delta)
-	jump_buffer = 0.12 if Input.is_action_just_pressed("jump") else maxf(0.0, jump_buffer - delta)
-	if grounded:
-		jump_count = 0
-	var horizontal = Input.get_axis("left", "right")
-	var vertical = Input.get_axis("up", "down")
-	if hurt_time > 0:
-		velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
-		move_and_slide()
-		return
-	if state == CLIMB and not is_on_ladder:
-		change_state(JUMP)
-	if is_on_ladder and vertical != 0:
-		change_state(CLIMB)
-	velocity.x = horizontal * run_speed
-	if horizontal != 0:
-		$Sprite2D.flip_h = horizontal < 0
-	if state == CLIMB:
-		velocity.y = vertical * climb_speed
-		$Sprite2D.frame = 1 + int(Time.get_ticks_msec() / 140) % 2 if vertical != 0 else 0
-	else:
-		velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
-	if jump_buffer > 0 and (coyote_time > 0 or jump_count < 2 or state == CLIMB):
-		var first_jump = coyote_time > 0 or state == CLIMB or jump_count == 0
-		velocity.y = jump_speed if first_jump else jump_speed * 0.72
-		jump_count = 1 if first_jump else 2
-		jump_buffer = 0
-		coyote_time = 0
-		change_state(JUMP)
-		GameState.sound("jump4")
-	if Input.is_action_just_released("jump") and velocity.y < -150:
-		velocity.y = -150
-	move_and_slide()
-	if is_on_floor() and not grounded:
-		dust.restart()
-		dust.emitting = true
-	if state != CLIMB:
-		change_state((RUN if horizontal != 0 else IDLE) if is_on_floor() else JUMP)
-
-func reset(spawn_position):
-	position = spawn_position
-	velocity = Vector2.ZERO
-	jump_count = 0
-	jump_buffer = 0
-	coyote_time = 0
-	is_on_ladder = false
-	invulnerability = 0
-	hurt_time = 0
-	show()
-	change_state(IDLE)
-	life = 3
-
 func set_life(value):
-	life = clampi(value, 0, 3)
+	life = value
 	life_changed.emit(life)
-	if life == 0 and state != DEAD:
+	if life <= 0:
 		change_state(DEAD)
 
-func hurt(direction = -1.0):
-	if invulnerability > 0 or state == DEAD:
+enum {IDLE, RUN, JUMP, HURT, DEAD}
+
+var state = IDLE
+
+func _ready():
+	change_state(IDLE)
+	
+
+func change_state(new_state):
+	state = new_state
+	match state:
+		IDLE:
+			$AnimationPlayer.play("idle")
+		RUN:
+			$AnimationPlayer.play("run")
+		HURT:
+			$AnimationPlayer.play("hurt")
+			velocity.y = -200
+			velocity.x = -100 * sign(velocity.x)
+			life -= 1
+			await get_tree().create_timer(0.5).timeout
+			change_state(IDLE)
+		JUMP:
+			$AnimationPlayer.play("jump_up")
+		DEAD:
+			died.emit()
+			hide()
+			
+func get_input():
+	if state == HURT:
 		return
-	invulnerability = 1.3
-	hurt_time = 0.22
-	velocity = Vector2(130 * direction, -180)
-	change_state(HURT)
-	life -= 1
-	GameState.sound("hurt1")
+	var right = Input.is_action_pressed("right")
+	var left = Input.is_action_pressed("left")
+	var jump = Input.is_action_just_pressed("jump")
+	
+	velocity.x = 0
+	
+	if right:
+		velocity.x += run_speed
+		$Sprite2D.flip_h = false
+		
+	if left:
+		velocity.x -= run_speed
+		$Sprite2D.flip_h = true
+		
+	#allow us to jump if jump is pressed AND if we are on the floor
+	if jump and is_on_floor():
+		change_state(JUMP)
+		velocity.y = jump_speed
+		
+	#if we are currently in idle and then our velocity changes to were it is no longer 0
+	if state == IDLE and velocity.x != 0:
+		change_state(RUN)
+	
+	#transition from running to idle
+	if state == RUN and velocity.x == 0:
+		change_state(IDLE)
+		
+	#jump transition
+	if state in [IDLE,RUN] and !is_on_floor():
+		change_state(JUMP)
+			
+func _physics_process(delta):
+	velocity.y += gravity * delta
+	get_input()
+	move_and_slide()
+	
+	if state == JUMP and is_on_floor():
+		change_state(IDLE)
+	
+	if state == JUMP and velocity.y > 0:
+		$AnimationPlayer.play("jump_down")
 
-func bounce():
-	velocity.y = -260
-	jump_count = 1
-	change_state(JUMP)
-
+func reset(_position):
+	position = _position
+	show()
+	change_state(IDLE)
+	
+	
+func hurt():
+	if state != HURT:
+		change_state(HURT)
